@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta name="baidu-site-verification" content="WlkvvMvzfN">
+<meta name="google-site-verification" content="ugWInXY65CU7UTxW9TErUlvsSzh8PNfwZ7RlRD4x6d4">
+<meta name="google-site-verification" content="VdMkJFZ8V3ulvG2oWYu01DgLcj3QaxkkORB3giXRA1g">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="技术,进程,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="进程间通信进程间通信就是不同进程间进行数据交换的过程。因为进程间相互独立，每个进程拥有独立的地址空间、数据处理逻辑，操作系统保证了进程独立运行的地址安全；但在复杂系统，单进程往往不能胜任业务需求，需要多进程的加入，多进程协作完成工作，这就离不开进程间通信这个话题了。">
+<meta name="keywords" content="技术,进程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="进程间通信(IPC)——Unix域套接字 VS 网络套接字">
+<meta property="og:url" content="http://blog.ddqspace.xyz/2019-02-14/ipc-socket-md/index.html">
+<meta property="og:site_name" content="小事记">
+<meta property="og:description" content="进程间通信进程间通信就是不同进程间进行数据交换的过程。因为进程间相互独立，每个进程拥有独立的地址空间、数据处理逻辑，操作系统保证了进程独立运行的地址安全；但在复杂系统，单进程往往不能胜任业务需求，需要多进程的加入，多进程协作完成工作，这就离不开进程间通信这个话题了。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2020-07-20T02:52:58.969Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="进程间通信(IPC)——Unix域套接字 VS 网络套接字">
+<meta name="twitter:description" content="进程间通信进程间通信就是不同进程间进行数据交换的过程。因为进程间相互独立，每个进程拥有独立的地址空间、数据处理逻辑，操作系统保证了进程独立运行的地址安全；但在复杂系统，单进程往往不能胜任业务需求，需要多进程的加入，多进程协作完成工作，这就离不开进程间通信这个话题了。">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://blog.ddqspace.xyz/2019-02-14/ipc-socket-md/">
+
+
+
+
+
+  <title>进程间通信(IPC)——Unix域套接字 VS 网络套接字 | 小事记</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">小事记</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://blog.ddqspace.xyz/2019-02-14/ipc-socket-md/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dongcia">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小事记">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">进程间通信(IPC)——Unix域套接字 VS 网络套接字</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-14T11:06:55+08:00">
+                2019-02-14
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="进程间通信"><a href="#进程间通信" class="headerlink" title="进程间通信"></a>进程间通信</h2><p>进程间通信就是不同进程间进行数据交换的过程。因为进程间相互独立，每个进程拥有独立的地址空间、数据处理逻辑，操作系统保证了进程独立运行的地址安全；但在复杂系统，单进程往往不能胜任业务需求，需要多进程的加入，多进程协作完成工作，这就离不开进程间通信这个话题了。</p>
+<a id="more"></a>
+<p>进程间通信有很多种方式，列举如下：</p>
+<ul>
+<li>管道：管道只能在具有公共祖先的两个进程间使用，这是Linux系统使用命令时常见的一种方式。</li>
+<li>命名管道：APUE中也命名为FIFO，是上述管道的一个升级，支持不同祖先进程的两个进程间进行通信。</li>
+<li>消息队列：这里是指Linux系统内核里面支持的消息队列，是消息的链接表，由消息队列标识符在内核进行标识，内核提供专用API进行队列操作。</li>
+<li>信号量：和线程同步中的信号量概念类似，不同于存储数据，信号量主要作为计数器控制资源的安全访问。</li>
+<li>共享存储：共享存储可以理解为操作系统在内存中划分专用区域提供资源共享，内核提供API进行共享内存的操作，C++11之后也提供了共享内存的操作API，更加方便进行共享内存的操作。</li>
+<li>网络IPC：RPC、HTTP等网络通信，是分布式系统常见的通信方式。</li>
+</ul>
+<p>而进程间通信按进程分布情况可以<strong>单机内的进程间通信</strong>和<strong>多机间远程调用的进程间通信</strong>，后者无需多讲，在分布式等大型系统中是非常常见的，而进行通信的方式主要是上述方法中的网络IPC，有非常多的资料介绍相关内容，不在本文的讨论范围之内。</p>
+<p>本文主要讨论在<strong>单机内进程间通信</strong>中，Unix域套接字和TCP网络套接字的对比，后者属于网络IPC。</p>
+<h2 id="套接字"><a href="#套接字" class="headerlink" title="套接字"></a>套接字</h2><p>套接字是一种应用程序接口，包括了一个用C语言写成的应用程序开发库，主要用于实现进程间通讯，在计算机网络通讯方面被广泛使用。下面要讨论的网络套接字和Unix套接字均属于套接字。</p>
+<p>在定义套接字类型的时候，网络套接字通常使用<strong>AF_INET</strong>进行定义；Unix域套接字则使用<strong>AF_UNIX</strong>进行定义。</p>
+<p>套接字类型有三种，分别是流式套接字、数据报套接字和原始套接字。</p>
+<p>流式套接字(SOCK_STREAM)：流式套接字用于提供面向连接、可靠的数据传输服务。该服务将保证数据能够实现无差错、无重复发送，并按顺序接收。流式套接字之所以能够实现可靠的数据服务，原因在于其使用了传输控制协议，即TCP（The Transmission Control Protocol）协议。</p>
+<p>数据报套接字(SOCK_DGRAM)：数据报套接字提供了一种无连接的服务。该服务并不能保证数据传输的可靠性，数据有可能在传输过程中丢失或出现数据重复，且无法保证顺序地接收到数据。数据报套接字使用UDP（User Datagram Protocol）协议进行数据的传输。由于数据报套接字不能保证数据传输的可靠性，对于有可能出现的数据丢失情况，需要在程序中做相应的处理。</p>
+<p>原始套接字(SOCK_RAW)：原始套接字(SOCKET_RAW)允许对较低层次的协议直接访问，比如IP、 ICMP协议，它常用于检验新的协议实现，或者访问现有服务中配置的新设备，因为RAW SOCKET可以自如地控制Windows下的多种协议，能够对网络底层的传输机制进行控制，所以可以应用原始套接字来操纵网络层和传输层应用。比如，我们可以通过RAW SOCKET来接收发向本机的ICMP、IGMP协议包，或者接收TCP/IP栈不能够处理的IP包，也可以用来发送一些自定包头或自定协议的IP包。网络监听技术很大程度上依赖于SOCKET_RAW。</p>
+<p>原始套接字与标准套接字（标准套接字指的是前面介绍的流式套接字和数据报套接字）的区别在于：原始套接字可以读写内核没有处理的IP数据包，而流式套接字只能读取TCP协议的数据，数据报套接字只能读取UDP协议的数据。因此，如果要访问其他协议发送数据必须使用原始套接字。</p>
+<h2 id="网络套接字"><a href="#网络套接字" class="headerlink" title="网络套接字"></a>网络套接字</h2><p>网络通信中通常都是使用网络套接字进行通信，可用于单机进程间通信和多机进程间通信，网络套接字由五元组来标识：(源地址、源端口、目标地址、目标端口、通信协议)，因而网络套接字在网络协议栈中属于传输层之上的内容。所以，在使用网络套接字通信的时候，传递内容需要经过完整的网络协议栈四层模型中的(传输层-网络层-网络访问层（数据链路层-物理层）)。</p>
+<p>回想在协议栈当中，对于报文的处理有哪些操作。</p>
+<ul>
+<li>添加、删除报文头：在报文里面，每个数据报文会添加相应的报文头，比如TCP报文头、IP报文头等</li>
+<li>计算校验和：协议为了防止网络传输引起的数据不一致，引入校验和来确认报文数据准确</li>
+<li>计算报文顺序：多个报文在网络传输中存在后发送的报文提前到达的情况，需要引入报文顺序字段保证多报文顺序一致</li>
+<li>请求、接收确认步骤：可靠通信包含额外的通信过程，需要保证报文成功接收</li>
+</ul>
+<h2 id="Unix域套接字-Unix-Domain-Socket"><a href="#Unix域套接字-Unix-Domain-Socket" class="headerlink" title="Unix域套接字(Unix Domain Socket)"></a>Unix域套接字(Unix Domain Socket)</h2><p>Unix域套接字只能用于在同一个计算机的进程间进行通信。虽然网络套接字也可以用于单机进程间的通信，但是使用Unix域套接字效率会更高，因为Unix域套接字仅仅进行数据复制，不会执行在网络协议栈中需要处理的添加、删除报文头、计算校验和、计算报文顺序等复杂操作，因而在单机的进程间通信中，更加推荐使用Unix域套接字。</p>
+<h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><p>关于套接字的使用，资料很多，不再介绍。</p>
+<h2 id="对比"><a href="#对比" class="headerlink" title="对比"></a>对比</h2><p>这里拿网络套接字和Unix域套接字出来比较的原因是，很多人在进行单机多进程开发时没有注意到Unix域套接字的存在，而是使用了成本较高的网络套接字进行开发。Unix套接字在通信开销方面是很小的，因而在单机通信中更加推荐使用Unix域套接字。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/技术/" rel="tag"># 技术</a>
+          
+            <a href="/tags/进程/" rel="tag"># 进程</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018-11-14/python-asyncio/" rel="next" title="Python的协程库——asyncio">
+                <i class="fa fa-chevron-left"></i> Python的协程库——asyncio
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019-02-15/distribute-zk/" rel="prev" title="分布式系统的基石——ZooKeeper">
+                分布式系统的基石——ZooKeeper <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div id="gitalk-container">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dongcia</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#进程间通信"><span class="nav-number">1.</span> <span class="nav-text">进程间通信</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#套接字"><span class="nav-number">2.</span> <span class="nav-text">套接字</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#网络套接字"><span class="nav-number">3.</span> <span class="nav-text">网络套接字</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Unix域套接字-Unix-Domain-Socket"><span class="nav-number">4.</span> <span class="nav-text">Unix域套接字(Unix Domain Socket)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#使用"><span class="nav-number">5.</span> <span class="nav-text">使用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对比"><span class="nav-number">6.</span> <span class="nav-text">对比</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dongcia</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+  <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+  <script src="//cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.js"></script>
+   <script type="text/javascript">
+        var gitalk = new Gitalk({
+          clientID: 'e89bfe7952ba3aaa903d',
+          clientSecret: '1bf21d50a11029ab1887fd345e6d73882eaccc9f',
+          repo: 'dongcia.github.io',
+          owner: 'dongcia',
+          admin: ['dongcia'],
+          id: md5(location.pathname),
+          distractionFreeMode: 'true'
+        })
+        gitalk.render('gitalk-container')           
+       </script>
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+<script>
+(function(){
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+})();
+</script>
+
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

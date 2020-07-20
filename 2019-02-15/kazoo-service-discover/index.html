@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta name="baidu-site-verification" content="WlkvvMvzfN">
+<meta name="google-site-verification" content="ugWInXY65CU7UTxW9TErUlvsSzh8PNfwZ7RlRD4x6d4">
+<meta name="google-site-verification" content="VdMkJFZ8V3ulvG2oWYu01DgLcj3QaxkkORB3giXRA1g">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="技术,ZooKeeper,分布式,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="在实际生产环境当中，面对高并发、大流量等的复杂环境，分布式架构是非常常见的架构，分布式架构可以增大系统容量，加强模块可用性、扩展性强；不同企业面对不同的环境，架构也各不相同，但万变不离其中，本文就来探讨分布式架构中的使用ZooKeeper实现服务注册与服务发现。">
+<meta name="keywords" content="技术,ZooKeeper,分布式">
+<meta property="og:type" content="article">
+<meta property="og:title" content="服务注册与服务发现的最简单实践">
+<meta property="og:url" content="http://blog.ddqspace.xyz/2019-02-15/kazoo-service-discover/index.html">
+<meta property="og:site_name" content="小事记">
+<meta property="og:description" content="在实际生产环境当中，面对高并发、大流量等的复杂环境，分布式架构是非常常见的架构，分布式架构可以增大系统容量，加强模块可用性、扩展性强；不同企业面对不同的环境，架构也各不相同，但万变不离其中，本文就来探讨分布式架构中的使用ZooKeeper实现服务注册与服务发现。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2020-07-20T02:52:58.969Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="服务注册与服务发现的最简单实践">
+<meta name="twitter:description" content="在实际生产环境当中，面对高并发、大流量等的复杂环境，分布式架构是非常常见的架构，分布式架构可以增大系统容量，加强模块可用性、扩展性强；不同企业面对不同的环境，架构也各不相同，但万变不离其中，本文就来探讨分布式架构中的使用ZooKeeper实现服务注册与服务发现。">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://blog.ddqspace.xyz/2019-02-15/kazoo-service-discover/">
+
+
+
+
+
+  <title>服务注册与服务发现的最简单实践 | 小事记</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">小事记</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://blog.ddqspace.xyz/2019-02-15/kazoo-service-discover/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dongcia">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小事记">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">服务注册与服务发现的最简单实践</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-15T11:13:23+08:00">
+                2019-02-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>在实际生产环境当中，面对高并发、大流量等的复杂环境，分布式架构是非常常见的架构，分布式架构可以增大系统容量，加强模块可用性、扩展性强；不同企业面对不同的环境，架构也各不相同，但万变不离其中，本文就来探讨分布式架构中的使用ZooKeeper实现服务注册与服务发现。</p>
+<a id="more"></a>
+<h2 id="服务注册与服务发现"><a href="#服务注册与服务发现" class="headerlink" title="服务注册与服务发现"></a>服务注册与服务发现</h2><p>服务注册，简而言之，就是当一个服务节点上线的时候，能够注册到配置服务当中去，通过配置服务节点向外部正式提供服务，其他需要依赖该服务的服务可以通过查询配置服务获得该节点的具体地址，并发起服务请求。服务注册所描述的对象是被依赖的服务节点。</p>
+<p>服务发现就是当一个服务需要依赖别的服务的时候，可以通过配置服务的查询，获得依赖可用的节点，进而进行调用，服务发现所描述得对象是需要依赖其他服务的节点。</p>
+<p>在这里，服务注册和发现需要解决的一个十分关键的问题是节点保活，也即是配置服务需要保证进行注册过来提供服务的节点一定是可用的，在生产环境当中常采用心跳机制保证注册节点的可用。</p>
+<p>ZooKeeper的Znode有四种节点：</p>
+<ol>
+<li><p>PERSISTENT——持久化节点</p>
+<blockquote>
+<p>客户端与ZooKeeper断开连接后，该节点依旧存在</p>
+</blockquote>
+</li>
+<li><p>PERSISTENT_SEQUENTIAL——持久化顺序编号节点</p>
+<blockquote>
+<p>客户端与ZooKeeper断开连接后，该节点依旧存在，只是Zookeeper给该节点名称进行顺序编号</p>
+</blockquote>
+</li>
+<li><p>EPHEMERAL——临时节点</p>
+<blockquote>
+<p>客户端与ZooKeeper断开连接后，该节点被删除</p>
+</blockquote>
+</li>
+<li><p>EPHEMERAL_SEQUENTIAL——临时顺序编号节点</p>
+<blockquote>
+<p>客户端与ZooKeeper断开连接后，该节点被删除，只是Zookeeper给该节点名称进行顺序编号</p>
+</blockquote>
+</li>
+</ol>
+<p>重点考察第三种节点，临时节点，采用临时节点可以实现类似心跳的机制，若服务与ZooKeeper保持连接，则认为服务在线，服务可用；若服务与ZooKeeper关闭连接即认为服务下线了，服务变为不可用。</p>
+<p>服务注册与服务发现：使用ZooKeeper维护的Znode可以维持服务注册节点信息，比如维护一个tornado服务的服务列表；那么可以在ZooKeeper维护以下的目录结构。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/zk_registry/data/tornado_app/</span><br></pre></td></tr></table></figure>
+<p>这时tornado服务节点No.1上线了，地址为：192.168.149.134:2181，维护目录更新如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/zk_registry/data/tornado_app/192.168.149.134:2181</span><br></pre></td></tr></table></figure>
+<p>接着tornado服务节点No.2上线了，地址为：192.168.149.134:2182，那么更新目路节点如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/zk_registry/data/tornado_app/192.168.149.134:2182</span><br></pre></td></tr></table></figure>
+<p>这时使用zk的命令行可以获得以下信息：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ls /zk_registry/data/tornado_app/</span><br><span class="line"><span class="meta">#</span> 192.168.149.134:2181 192.168.149.134:2182</span><br></pre></td></tr></table></figure>
+<p>如果使用临时节点，当节点：192.168.149.134:2182下线的时候，相关记录会自动消失</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ls /zk_registry/data/tornado_app/</span><br><span class="line"><span class="meta">#</span> 192.168.149.134:2181</span><br></pre></td></tr></table></figure>
+<p>基于此过程，我们可以实现服务注册和服务发现的机制。</p>
+<h2 id="Kazoo-实现"><a href="#Kazoo-实现" class="headerlink" title="Kazoo 实现"></a>Kazoo 实现</h2><h3 id="配置文件"><a href="#配置文件" class="headerlink" title="配置文件"></a>配置文件</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># config.py</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 数据路径</span></span><br><span class="line">ZK_REGISTER_PATH = <span class="string">'/zk_registry/data'</span></span><br><span class="line"><span class="comment"># zk地址</span></span><br><span class="line">ZK_SERVER_URL = <span class="string">'192.168.149.134:2181'</span></span><br><span class="line"><span class="comment"># 服务标识</span></span><br><span class="line">TORNADO_APP_LABEL = <span class="string">'tornado_app'</span></span><br></pre></td></tr></table></figure>
+<h3 id="ZooKeeper操作管理类"><a href="#ZooKeeper操作管理类" class="headerlink" title="ZooKeeper操作管理类"></a>ZooKeeper操作管理类</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># manager.py</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"><span class="keyword">from</span> kazoo.client <span class="keyword">import</span> KazooClient</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> config</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SRSDManager</span><span class="params">(object)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, zk_service_url)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        初始化</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param zk_service_url: zk集群地址，多个用“,”分割</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line"></span><br><span class="line">        self.zk_client = <span class="literal">None</span></span><br><span class="line">        self.service_map = &#123;&#125;</span><br><span class="line"></span><br><span class="line">        logging.basicConfig()</span><br><span class="line">        print(<span class="string">'Init with zk address: '</span> + str(zk_service_url))</span><br><span class="line"></span><br><span class="line">        zk_client = KazooClient(zk_service_url)</span><br><span class="line">        zk_client.start()</span><br><span class="line">        self.zk_client = zk_client</span><br><span class="line">        print(<span class="string">'Init ZookeeperManager success.'</span>)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">register_service</span><span class="params">(self, service_label, service_address)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        注册服务</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param service_label: 服务标记，标记属于什么服务</span></span><br><span class="line"><span class="string">        :param service_address: 需要注册的服务地址</span></span><br><span class="line"><span class="string">        :return:</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">discover_service</span><span class="params">(self, service_label, all_variable_service=True)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        服务发现</span></span><br><span class="line"><span class="string">        :param service_label: 服务标记，标记属于什么服务</span></span><br><span class="line"><span class="string">        :param all_variable_service: 是否返回所有可用服务地址列表，默认True</span></span><br><span class="line"><span class="string">        :return: 服务列表</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+<h4 id="服务注册"><a href="#服务注册" class="headerlink" title="服务注册"></a>服务注册</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">register_service</span><span class="params">(self, service_label, service_address)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    注册服务</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    :param service_label: 服务标记，标记属于什么服务</span></span><br><span class="line"><span class="string">    :param service_address: 需要注册的服务地址</span></span><br><span class="line"><span class="string">    :return:</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    zk_client = self.zk_client</span><br><span class="line"></span><br><span class="line">    path = <span class="string">'%s/%s'</span> % (config.ZK_REGISTER_PATH, service_label)</span><br><span class="line">    zk_client.ensure_path(path)</span><br><span class="line"></span><br><span class="line">    node = <span class="string">'%s/%s'</span> % (path, service_address)</span><br><span class="line">    print(<span class="string">'Create node with data: %s =&gt; %s'</span> % (node, service_address))</span><br><span class="line">    zk_client.create(node, <span class="string">b''</span>, ephemeral=<span class="literal">True</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br></pre></td></tr></table></figure>
+<h4 id="服务发现"><a href="#服务发现" class="headerlink" title="服务发现"></a>服务发现</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">discover_service</span><span class="params">(self, service_label, all_variable_service=True)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    服务发现</span></span><br><span class="line"><span class="string">    :param service_label: 服务标记，标记属于什么服务</span></span><br><span class="line"><span class="string">    :param all_variable_service: 是否返回所有可用服务地址列表，默认True</span></span><br><span class="line"><span class="string">    :return: 服务列表</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    zk_client = self.zk_client</span><br><span class="line"></span><br><span class="line">    path = <span class="string">'%s/%s'</span> % (config.ZK_REGISTER_PATH, service_label)</span><br><span class="line">    nodes = zk_client.get_children(path)</span><br><span class="line">    <span class="keyword">if</span> all_variable_service:</span><br><span class="line">        <span class="keyword">return</span> nodes</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">return</span> random.sample(nodes, <span class="number">1</span>)</span><br></pre></td></tr></table></figure>
+<h4 id="管理类的简单测试"><a href="#管理类的简单测试" class="headerlink" title="管理类的简单测试"></a>管理类的简单测试</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line"></span><br><span class="line">    manager = SRSDManager(config.ZK_SERVER_URL)</span><br><span class="line"></span><br><span class="line">    manager.register_service(<span class="string">'hello'</span>, <span class="string">'world'</span>)</span><br><span class="line">    service_list = manager.discover_service(<span class="string">'hello'</span>)</span><br><span class="line">    print(service_list)</span><br></pre></td></tr></table></figure>
+<h3 id="测试服务注册"><a href="#测试服务注册" class="headerlink" title="测试服务注册"></a>测试服务注册</h3><p>可以实现一个简单的应用使用上述实现的API进行服务注册，以下使用tornado实现一个简单的app。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># service.py</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> socket</span><br><span class="line"><span class="keyword">import</span> platform</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> tornado.ioloop</span><br><span class="line"><span class="keyword">import</span> tornado.web</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> config</span><br><span class="line"><span class="keyword">import</span> srsd.manager</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MainHandler</span><span class="params">(tornado.web.RequestHandler)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get</span><span class="params">(self)</span>:</span></span><br><span class="line">        cpu_info = platform.processor()</span><br><span class="line">        system_info = platform.platform()</span><br><span class="line">        localtime = time.strftime(<span class="string">"%a %b %d %H:%M:%S %Y"</span>, time.localtime())</span><br><span class="line">        m = &#123;&#125;</span><br><span class="line">        m[<span class="string">'cpu_info'</span>] = cpu_info</span><br><span class="line">        m[<span class="string">'system_info'</span>] = system_info</span><br><span class="line">        m[<span class="string">'localtime'</span>] = localtime</span><br><span class="line">        self.write(json.dumps(m))</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">make_app</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">return</span> tornado.web.Application([</span><br><span class="line">        (<span class="string">r"/info"</span>, MainHandler),</span><br><span class="line">    ])</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">register_service</span><span class="params">(service_label, ip, port)</span>:</span></span><br><span class="line">    zkm = srsd.manager.SRSDManager(config.ZK_SERVER_URL)</span><br><span class="line">    service_addr = <span class="string">'%s:%d'</span> % (ip, port)</span><br><span class="line">    zkm.register_service(service_label, service_addr)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:</span><br><span class="line">    app = make_app()</span><br><span class="line"></span><br><span class="line">    service_label = config.TORNADO_APP_LABEL</span><br><span class="line">    port = <span class="number">8888</span></span><br><span class="line">    ip = socket.gethostbyname(socket.gethostname())</span><br><span class="line">    register_service(service_label, ip, port)</span><br><span class="line"></span><br><span class="line">    print(<span class="string">'Start tornado app at port: '</span> + str(port))</span><br><span class="line">    app.listen(port)</span><br><span class="line">    tornado.ioloop.IOLoop.current().start()</span><br></pre></td></tr></table></figure>
+<h3 id="测试服务发现"><a href="#测试服务发现" class="headerlink" title="测试服务发现"></a>测试服务发现</h3><p>可以实现一个客户端测试服务发现的功能，如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># client.py</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> config</span><br><span class="line"><span class="keyword">from</span> srsd.manager <span class="keyword">import</span> SRSDManager</span><br><span class="line"></span><br><span class="line">zkm = SRSDManager(config.ZK_SERVER_URL)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">tornado_app_client</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="comment"># 通过zk查找可用service</span></span><br><span class="line">    available_services = zkm.discover_service(config.TORNADO_APP_LABEL)</span><br><span class="line">    <span class="comment"># 随机挑选</span></span><br><span class="line">    index = random.randint(<span class="number">0</span>, len(available_services) - <span class="number">1</span>)</span><br><span class="line">    service = available_services[index]</span><br><span class="line">    <span class="comment"># 发送请求</span></span><br><span class="line">    api = <span class="string">'/info'</span></span><br><span class="line">    url = <span class="string">'http://%s%s'</span> % (service, api)</span><br><span class="line">    print(<span class="string">"Request url: "</span>, url)</span><br><span class="line">    response = requests.get(url)</span><br><span class="line">    print(response.text)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    tornado_app_client()</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/技术/" rel="tag"># 技术</a>
+          
+            <a href="/tags/ZooKeeper/" rel="tag"># ZooKeeper</a>
+          
+            <a href="/tags/分布式/" rel="tag"># 分布式</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019-02-15/distribute-zk/" rel="next" title="分布式系统的基石——ZooKeeper">
+                <i class="fa fa-chevron-left"></i> 分布式系统的基石——ZooKeeper
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019-02-27/some-phrase/" rel="prev" title="一些值得注意的短语定律">
+                一些值得注意的短语定律 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div id="gitalk-container">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dongcia</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#服务注册与服务发现"><span class="nav-number">1.</span> <span class="nav-text">服务注册与服务发现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Kazoo-实现"><span class="nav-number">2.</span> <span class="nav-text">Kazoo 实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#配置文件"><span class="nav-number">2.1.</span> <span class="nav-text">配置文件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZooKeeper操作管理类"><span class="nav-number">2.2.</span> <span class="nav-text">ZooKeeper操作管理类</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#服务注册"><span class="nav-number">2.2.1.</span> <span class="nav-text">服务注册</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#服务发现"><span class="nav-number">2.2.2.</span> <span class="nav-text">服务发现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#管理类的简单测试"><span class="nav-number">2.2.3.</span> <span class="nav-text">管理类的简单测试</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#测试服务注册"><span class="nav-number">2.3.</span> <span class="nav-text">测试服务注册</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#测试服务发现"><span class="nav-number">2.4.</span> <span class="nav-text">测试服务发现</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dongcia</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+  <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+  <script src="//cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.js"></script>
+   <script type="text/javascript">
+        var gitalk = new Gitalk({
+          clientID: 'e89bfe7952ba3aaa903d',
+          clientSecret: '1bf21d50a11029ab1887fd345e6d73882eaccc9f',
+          repo: 'dongcia.github.io',
+          owner: 'dongcia',
+          admin: ['dongcia'],
+          id: md5(location.pathname),
+          distractionFreeMode: 'true'
+        })
+        gitalk.render('gitalk-container')           
+       </script>
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+<script>
+(function(){
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+})();
+</script>
+
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

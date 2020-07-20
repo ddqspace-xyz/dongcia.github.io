@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta name="baidu-site-verification" content="WlkvvMvzfN">
+<meta name="google-site-verification" content="ugWInXY65CU7UTxW9TErUlvsSzh8PNfwZ7RlRD4x6d4">
+<meta name="google-site-verification" content="VdMkJFZ8V3ulvG2oWYu01DgLcj3QaxkkORB3giXRA1g">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="技术,线程,协程,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="前言这篇文章是关于协程、线程与线程池的总结。相信有不少人曾经和我一样，不理解他们之间的差异和使用场景等等，那么在这篇文章，我尝试使用图解的方式对他们进行一个总结和对比，来了解他们的细节。">
+<meta name="keywords" content="技术,线程,协程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="线程与协程">
+<meta property="og:url" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/index.html">
+<meta property="og:site_name" content="小事记">
+<meta property="og:description" content="前言这篇文章是关于协程、线程与线程池的总结。相信有不少人曾经和我一样，不理解他们之间的差异和使用场景等等，那么在这篇文章，我尝试使用图解的方式对他们进行一个总结和对比，来了解他们的细节。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/1.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/2.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/3.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/4.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/5.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/6.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/7.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/8.png">
+<meta property="og:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/9.png">
+<meta property="og:updated_time" content="2020-07-20T02:52:58.970Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="线程与协程">
+<meta name="twitter:description" content="前言这篇文章是关于协程、线程与线程池的总结。相信有不少人曾经和我一样，不理解他们之间的差异和使用场景等等，那么在这篇文章，我尝试使用图解的方式对他们进行一个总结和对比，来了解他们的细节。">
+<meta name="twitter:image" content="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/">
+
+
+
+
+
+  <title>线程与协程 | 小事记</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">小事记</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://blog.ddqspace.xyz/2018-11-13/thread-and-coroutine/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dongcia">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小事记">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">线程与协程</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-13T10:46:40+08:00">
+                2018-11-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>这篇文章是关于协程、线程与线程池的总结。相信有不少人曾经和我一样，不理解他们之间的差异和使用场景等等，那么在这篇文章，我尝试使用图解的方式对他们进行一个总结和对比，来了解他们的细节。</p>
+<a id="more"></a>
+<h2 id="线程"><a href="#线程" class="headerlink" title="线程"></a>线程</h2><p>首先是线程，考虑有一个单核的CPU、一个有很多任务(Task)的队列和一个线程(Thread)，线程从队列拿到任务Task1并准备执行，当CPU调度执行该线程的时候，那么这个时候的执行模型是这个样子的。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/1.png" alt="单线程执行任务"></p>
+<p>正常而言，如果任务都是计算型的任务，线程Thread1会一直执行下去，直到遇到操作系统调度，向线程Thread1发出中断，让线程把CPU让出来以执行别的线程。</p>
+<p>但是，当任务有可能造成线程阻塞时，比如磁盘IO、网络IO、线程Sleep等等，CPU可能就没有耐心等待了，CPU会让Thread1收拾好自己的包袱(State)（需要一定的时间），让出CPU；然后让别的线程进来CPU运行。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/2.png" alt="1542093780365"></p>
+<h2 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a>线程池</h2><p>线程池是为了减少创建线程和销毁线程时候的开销而发明的，如果总是在需要使用线程的时候才创建线程，又总是在使用完线程之后销毁线程，并且这样的操作很多的话，那么在线程新建和销毁上所耗费的时间将会不少；因而提出将多个线程存放到一个容器里面，每次需要使用线程的时候，将线程拿出来，当线程使用完毕以后，再讲线程放回去，以此来节省创建和销毁线程带来的开销。</p>
+<p>还是以上的条件，使用线程池或单线程处理同样的Task时，所面临的CPU的对待是一样的，使用线程池与单线程的区别就在于，处理队列任务的线程是随机的，而不是同一个线程。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/3.png" alt="1542096817418"></p>
+<p>通常情况下，线程池都有多个线程，如果线程池只有一个线程，那么情景就会退化到第一种情况。</p>
+<h2 id="多线程"><a href="#多线程" class="headerlink" title="多线程"></a>多线程</h2><p>多线程是为了利用CPU的多核而存在的，在单核CPU使用多线程没有意义。</p>
+<p>所以假设条件做一些变更，考虑有一个双核的CPU、一个有很多任务(Task)的队列和两个线程(Thread)，因为CPU是双核CPU，所以CPU能够同时执行两个线程。当两个线程同时从任务队列取任务执行时，执行模型如下。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/4.png" alt="1542098197896"></p>
+<p>由于CPU能够同时执行两个线程，所以相比单线程时候的情况，处理的任务的速度会快一些，但单个CPU核的处理速度是没有变化的。</p>
+<p>当两个线程其中一个线程遇到阻塞任务时，CPU会将阻塞任务线程调出CPU核，让其他线程使用。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/5.png" alt="1542098674246"></p>
+<h2 id="异步（不考虑协程）"><a href="#异步（不考虑协程）" class="headerlink" title="异步（不考虑协程）"></a>异步（不考虑协程）</h2><p>异步的意思就是，当调用者发起一个异步调用时，调用者不能立刻得到运行的结果，而是在这个异步调用完成后，发送消息通知调用者，或者由调用者主动查询异步调用的状态以得到运行的结果。</p>
+<p>其实以上使用队列的方式就已经是异步调用了，只不过在前面没有强调异步的概念。调用者将回调函数保存在任务里面，等线程把任务执行完，通过回调函数通知调用者；或者调用者保存任务对象的指针或引用，在恰当的时机通过指针或引用，访问这个任务的执行状态。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/6.png" alt="1542100108620"></p>
+<p>异步执行任务的本质还是线程，只要存在阻塞任务，线程依然会被阻塞也依然会被请出CPU。</p>
+<p>那为什么在高并发的情况下还是推荐异步编程呢？那是因为<strong>异步不会阻塞调用者的线程</strong>，调用者在发起一个任务的时候，不需要同步的等待结果，而是可以同时去执行别的逻辑，对于执行异步任务的线程而言，阻塞时依然存在的。</p>
+<h2 id="协程"><a href="#协程" class="headerlink" title="协程"></a>协程</h2><p><strong>协程，英文coroutines，是一种比线程更加轻量级的存在。</strong>正如一个进程可以拥有多个线程一样，一个线程也可以拥有多个协程。协程是承载在线程之上的，所以协程和线程的关系看起来像这个样子。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/7.png" alt="1542103150401"></p>
+<p>正常情况下，执行的模型是这个样子的。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/8.png" alt="1542103509299"></p>
+<p>当线程运行了阻塞任务的时候，<strong>任务会主动让出线程</strong>，并且<strong>将下一个任务调度线程运行</strong>，执行的模型是这样子的。需要注意的是，在这个时候，CPU里面正在运行的线程没有变，只是在线程里面执行的任务切换了而已。当Task1阻塞，Task1能够主动让出线程，Task2能够进入线程执行，等Task1处理完阻塞了并且能够继续往下运行，Task1能够重新回到线程执行；在调用者看来就好像Task1和Task2在同时运行一样（每个任务就好像在更小的一个执行单元执行——协程），而且没有CPU线程的切换，这种情况就是协程。</p>
+<p><img src="/2018-11-13/thread-and-coroutine/9.png" alt="1542103619586"></p>
+<p>相比CPU切换线程，在线程切换协程有几个好处：</p>
+<ol>
+<li>切换协程在用户态进行 ，无需系统调用，更快</li>
+<li>调用者能够自主控制协程切换，更自由</li>
+<li>没有锁的概念，协程安全，不担心死锁等状况，省去锁的开销</li>
+</ol>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/技术/" rel="tag"># 技术</a>
+          
+            <a href="/tags/线程/" rel="tag"># 线程</a>
+          
+            <a href="/tags/协程/" rel="tag"># 协程</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018-11-13/python-magic/" rel="next" title="Python “魔术”函数大全">
+                <i class="fa fa-chevron-left"></i> Python “魔术”函数大全
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018-11-14/python-asyncio/" rel="prev" title="Python的协程库——asyncio">
+                Python的协程库——asyncio <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div id="gitalk-container">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dongcia</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#线程"><span class="nav-number">2.</span> <span class="nav-text">线程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#线程池"><span class="nav-number">3.</span> <span class="nav-text">线程池</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#多线程"><span class="nav-number">4.</span> <span class="nav-text">多线程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#异步（不考虑协程）"><span class="nav-number">5.</span> <span class="nav-text">异步（不考虑协程）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#协程"><span class="nav-number">6.</span> <span class="nav-text">协程</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dongcia</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+  <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+  <script src="//cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.js"></script>
+   <script type="text/javascript">
+        var gitalk = new Gitalk({
+          clientID: 'e89bfe7952ba3aaa903d',
+          clientSecret: '1bf21d50a11029ab1887fd345e6d73882eaccc9f',
+          repo: 'dongcia.github.io',
+          owner: 'dongcia',
+          admin: ['dongcia'],
+          id: md5(location.pathname),
+          distractionFreeMode: 'true'
+        })
+        gitalk.render('gitalk-container')           
+       </script>
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+<script>
+(function(){
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+})();
+</script>
+
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

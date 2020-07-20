@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta name="baidu-site-verification" content="WlkvvMvzfN">
+<meta name="google-site-verification" content="ugWInXY65CU7UTxW9TErUlvsSzh8PNfwZ7RlRD4x6d4">
+<meta name="google-site-verification" content="VdMkJFZ8V3ulvG2oWYu01DgLcj3QaxkkORB3giXRA1g">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="技术,Python,协程,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="生成器generator在讨论协程之前，我们先来看看python的生成器。简单的来讲，在python里面，一边循环一边计算的机制叫做生成器。举个例子。 生成一个有1000个元素的列表可以这样生成：123l = [i for i in range(1000)]print l# [0, 1, 2, 3, 4, ...] 这种方法，在内存生成了一个有1000个元素的列表。比较占用内存。">
+<meta name="keywords" content="技术,Python,协程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Python yield关键字与协程">
+<meta property="og:url" content="http://blog.ddqspace.xyz/2018-11-08/python-yield/index.html">
+<meta property="og:site_name" content="小事记">
+<meta property="og:description" content="生成器generator在讨论协程之前，我们先来看看python的生成器。简单的来讲，在python里面，一边循环一边计算的机制叫做生成器。举个例子。 生成一个有1000个元素的列表可以这样生成：123l = [i for i in range(1000)]print l# [0, 1, 2, 3, 4, ...] 这种方法，在内存生成了一个有1000个元素的列表。比较占用内存。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2020-07-20T02:52:58.970Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Python yield关键字与协程">
+<meta name="twitter:description" content="生成器generator在讨论协程之前，我们先来看看python的生成器。简单的来讲，在python里面，一边循环一边计算的机制叫做生成器。举个例子。 生成一个有1000个元素的列表可以这样生成：123l = [i for i in range(1000)]print l# [0, 1, 2, 3, 4, ...] 这种方法，在内存生成了一个有1000个元素的列表。比较占用内存。">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://blog.ddqspace.xyz/2018-11-08/python-yield/">
+
+
+
+
+
+  <title>Python yield关键字与协程 | 小事记</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">小事记</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://blog.ddqspace.xyz/2018-11-08/python-yield/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dongcia">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小事记">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Python yield关键字与协程</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-08T11:41:40+08:00">
+                2018-11-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="生成器generator"><a href="#生成器generator" class="headerlink" title="生成器generator"></a>生成器generator</h2><p>在讨论协程之前，我们先来看看python的<code>生成器</code>。简单的来讲，在python里面，一边循环一边计算的机制叫做<code>生成器</code>。举个例子。</p>
+<p>生成一个有1000个元素的列表可以这样生成：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">l = [i <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1000</span>)]</span><br><span class="line"><span class="keyword">print</span> l</span><br><span class="line"><span class="comment"># [0, 1, 2, 3, 4, ...]</span></span><br></pre></td></tr></table></figure></p>
+<p>这种方法，在内存生成了一个有1000个元素的列表。比较占用内存。</p>
+<a id="more"></a>
+<p>同样生成1000个元素的列表，这次采用生成器的方式：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">l = (i <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1000</span>))</span><br><span class="line"><span class="keyword">print</span> l</span><br><span class="line"><span class="comment"># &lt;generator object &lt;genexpr&gt; at 0x0000000003334410&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>只把<code>[]</code>换成了<code>()</code>，列表就变成了生成器。两者得到的有什么区别？</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用第一种方法生成的列表，因为列表已经存在内存里了，所以可以多次迭代，得到一样的结果</span></span><br><span class="line"><span class="keyword">for</span> time <span class="keyword">in</span> loop:</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> l:</span><br><span class="line">        <span class="keyword">print</span> i</span><br><span class="line"><span class="comment"># 1,2,3,4,......,999,1,2,3,4,......,999</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 而使用第二种方法生成的，只能迭代一次，迭代过程中，一边计算下一个结果，一边返回输出，如果进行第二次迭代将得到空结果</span></span><br><span class="line"><span class="keyword">for</span> time <span class="keyword">in</span> loop:</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> l:</span><br><span class="line">        <span class="keyword">print</span> i</span><br><span class="line"><span class="comment"># 1,2,3,4,......,999</span></span><br></pre></td></tr></table></figure>
+<p>在python2中，range和xrange就是这样的区别，这也是xrange比range性能要好的原因</p>
+<h2 id="关键字yield"><a href="#关键字yield" class="headerlink" title="关键字yield"></a>关键字yield</h2><p>yield在一般场景很难用上，使用yield的效果就是得到生成器。我们用yield编写一个函数实现上面生成器的效果：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">n1k</span><span class="params">()</span>:</span></span><br><span class="line">    i = <span class="number">0</span></span><br><span class="line">    <span class="keyword">while</span> i &lt; <span class="number">1000</span>:</span><br><span class="line">        <span class="keyword">yield</span> i</span><br><span class="line">        i += <span class="number">1</span></span><br><span class="line"><span class="comment">###################################################</span></span><br><span class="line"><span class="comment"># 调用函数，得到生成器</span></span><br><span class="line">gen = n1k()</span><br><span class="line"><span class="keyword">print</span> gen</span><br><span class="line"><span class="comment"># &lt;generator object n1k at 0x00000000033344C0&gt;</span></span><br><span class="line"><span class="comment"># 调用生成器</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> gen:</span><br><span class="line">    <span class="keyword">print</span> i</span><br><span class="line"><span class="comment"># 1,2,3,4,......,999</span></span><br></pre></td></tr></table></figure>
+<p>yield将函数变成了一个生成器，python解析器在调用这个函数的时候，不会去执行这个函数，而是得到一个迭代器去迭代这个生成器。</p>
+<p>所以一个带有 yield 的函数就是一个 generator，它和普通函数不同，生成一个 generator 看起来像函数调用，但不会执行任何函数代码，直到对其调用 next()（在 for 循环中会自动调用 next()）才开始执行。虽然执行流程仍按函数的流程执行，<strong>但每执行到一个 yield 语句就会中断，并返回一个迭代值</strong>，下次执行时从 yield 的下一个语句继续执行。<strong>看起来就好像一个函数在正常执行的过程中被 yield 中断了数次</strong>，每次中断都会通过 yield 返回当前的迭代值。</p>
+<h2 id="协程"><a href="#协程" class="headerlink" title="协程"></a>协程</h2><p>从python yield的角度去理解协程比较难理解，我们先来看看协程的概念。</p>
+<p>在高并发的场景下，由于多线程切换的开销比较大，于是有了协程，协程实质是在用户态实现了的线程，在系统内核态，是不能感知协程的存在，协程的切换由用户程序自己控制。</p>
+<p>要注意协程的特点，在用户态执行中断，并且切换上下文，来在同一个空间中完成不同的处理任务。</p>
+<p>这里的中断怎么理解，在迭代器里面，我们可以调用<code>next</code>函数随时的迭代出下一个元素。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">l = (i <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1000</span>))</span><br><span class="line">l.next()</span><br><span class="line"><span class="comment"># 0</span></span><br><span class="line">l.next()</span><br><span class="line"><span class="comment"># 1</span></span><br></pre></td></tr></table></figure>
+<p>迭代器可以调用<code>next</code>迭代出下一个元素的方法，就是一种中断，在得到一个迭代器之后，用户程序可以随时随地的在任意逻辑任意时间迭代和停止迭代，这就是中断。而在停止中断以后，程序运行了别的逻辑，这就相当于切换了上下文。</p>
+<p>所以，yield契合了协程的特性，因而才有了python用yield实现协程的内容。</p>
+<p>理解了协程之后，我们来看看一个生产者消费者的例子（来自廖雪峰官方网站的协程例子）：</p>
+<p>传统的生产者-消费者模型是一个线程写消息，一个线程取消息，通过锁机制控制队列和等待。</p>
+<p>改用协程：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">consumer</span><span class="params">()</span>:</span></span><br><span class="line">    r = <span class="string">''</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        n = <span class="keyword">yield</span> r</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> n:</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">        print(<span class="string">'[CONSUMER] Consuming %s...'</span> % n)</span><br><span class="line">        time.sleep(<span class="number">1</span>)</span><br><span class="line">        r = <span class="string">'200 OK'</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">produce</span><span class="params">(c)</span>:</span></span><br><span class="line">    c.next()</span><br><span class="line">    n = <span class="number">0</span></span><br><span class="line">    <span class="keyword">while</span> n &lt; <span class="number">5</span>:</span><br><span class="line">        n = n + <span class="number">1</span></span><br><span class="line">        print(<span class="string">'[PRODUCER] Producing %s...'</span> % n)</span><br><span class="line">        r = c.send(n) <span class="comment"># 通知迭代器返回下一个</span></span><br><span class="line">        print(<span class="string">'[PRODUCER] Consumer return: %s'</span> % r)</span><br><span class="line">    c.close()</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__==<span class="string">'__main__'</span>:</span><br><span class="line">    c = consumer()</span><br><span class="line">    produce(c)</span><br></pre></td></tr></table></figure>
+<p>执行结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[PRODUCER] Producing 1...</span><br><span class="line">[CONSUMER] Consuming 1...</span><br><span class="line">[PRODUCER] Consumer return: 200 OK</span><br><span class="line">[PRODUCER] Producing 2...</span><br><span class="line">[CONSUMER] Consuming 2...</span><br><span class="line">[PRODUCER] Consumer return: 200 OK</span><br><span class="line">[PRODUCER] Producing 3...</span><br><span class="line">[CONSUMER] Consuming 3...</span><br><span class="line">[PRODUCER] Consumer return: 200 OK</span><br><span class="line">[PRODUCER] Producing 4...</span><br><span class="line">[CONSUMER] Consuming 4...</span><br><span class="line">[PRODUCER] Consumer return: 200 OK</span><br><span class="line">[PRODUCER] Producing 5...</span><br><span class="line">[CONSUMER] Consuming 5...</span><br><span class="line">[PRODUCER] Consumer return: 200 OK</span><br></pre></td></tr></table></figure>
+<p>注意到consumer函数是一个generator（生成器），把一个consumer传入produce后：</p>
+<ol>
+<li>首先调用c.next()启动生成器；</li>
+<li>然后，一旦生产了东西，通过c.send(n)切换到consumer执行；</li>
+<li>consumer通过yield拿到消息，处理，又通过yield把结果传回；</li>
+<li>produce拿到consumer处理的结果，继续生产下一条消息；</li>
+<li>produce决定不生产了，通过c.close()关闭consumer，整个过程结束。</li>
+</ol>
+<p>整个流程无锁，由一个线程执行，produce和consumer协作完成任务，所以称为“协程”，而非线程的抢占式多任务。</p>
+<p>所以，通过使用yield生成的迭代器，是实现协程的一种方式。</p>
+<p>而在go语言里面，<code>goroutine</code>是协程的另外一种方式。</p>
+<p>所以使用yield实现协程比较难理解。如果将<code>goroutine</code>比喻成已经成品的车，那么yield就相当于提供了车的零件，还需要自己去拼装实现。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/技术/" rel="tag"># 技术</a>
+          
+            <a href="/tags/Python/" rel="tag"># Python</a>
+          
+            <a href="/tags/协程/" rel="tag"># 协程</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018-11-08/java-reflect/" rel="next" title="java 反射">
+                <i class="fa fa-chevron-left"></i> java 反射
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018-11-13/python-magic/" rel="prev" title="Python “魔术”函数大全">
+                Python “魔术”函数大全 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div id="gitalk-container">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dongcia</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#生成器generator"><span class="nav-number">1.</span> <span class="nav-text">生成器generator</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#关键字yield"><span class="nav-number">2.</span> <span class="nav-text">关键字yield</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#协程"><span class="nav-number">3.</span> <span class="nav-text">协程</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dongcia</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+  <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+  <script src="//cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.js"></script>
+   <script type="text/javascript">
+        var gitalk = new Gitalk({
+          clientID: 'e89bfe7952ba3aaa903d',
+          clientSecret: '1bf21d50a11029ab1887fd345e6d73882eaccc9f',
+          repo: 'dongcia.github.io',
+          owner: 'dongcia',
+          admin: ['dongcia'],
+          id: md5(location.pathname),
+          distractionFreeMode: 'true'
+        })
+        gitalk.render('gitalk-container')           
+       </script>
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+<script>
+(function(){
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+})();
+</script>
+
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

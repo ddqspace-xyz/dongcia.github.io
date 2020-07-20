@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta name="baidu-site-verification" content="WlkvvMvzfN">
+<meta name="google-site-verification" content="ugWInXY65CU7UTxW9TErUlvsSzh8PNfwZ7RlRD4x6d4">
+<meta name="google-site-verification" content="VdMkJFZ8V3ulvG2oWYu01DgLcj3QaxkkORB3giXRA1g">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="技术,Java,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="前阵子在用C++ 98（是比较落后了，嗯，C++11原生支持Future）开发的时候，对脱离业务的公共逻辑抽象出来了一个简单的任务执行框架，里面主要是线程池和一些同步异步的任务。在开发异步任务的时候，为了实现类似java Future模式的能力，对实现方式考量了好久，最终使用了信号量这么重的东西来实现了Future的能力，同时也不禁对java的Future实现产生兴趣，java的Future是怎">
+<meta name="keywords" content="技术,Java">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java Future的实现原理">
+<meta property="og:url" content="http://blog.ddqspace.xyz/2018-09-25/future-de-she-ji-yu-shi-xian/index.html">
+<meta property="og:site_name" content="小事记">
+<meta property="og:description" content="前阵子在用C++ 98（是比较落后了，嗯，C++11原生支持Future）开发的时候，对脱离业务的公共逻辑抽象出来了一个简单的任务执行框架，里面主要是线程池和一些同步异步的任务。在开发异步任务的时候，为了实现类似java Future模式的能力，对实现方式考量了好久，最终使用了信号量这么重的东西来实现了Future的能力，同时也不禁对java的Future实现产生兴趣，java的Future是怎">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2020-07-20T02:52:58.969Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Java Future的实现原理">
+<meta name="twitter:description" content="前阵子在用C++ 98（是比较落后了，嗯，C++11原生支持Future）开发的时候，对脱离业务的公共逻辑抽象出来了一个简单的任务执行框架，里面主要是线程池和一些同步异步的任务。在开发异步任务的时候，为了实现类似java Future模式的能力，对实现方式考量了好久，最终使用了信号量这么重的东西来实现了Future的能力，同时也不禁对java的Future实现产生兴趣，java的Future是怎">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://blog.ddqspace.xyz/2018-09-25/future-de-she-ji-yu-shi-xian/">
+
+
+
+
+
+  <title>Java Future的实现原理 | 小事记</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">小事记</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://blog.ddqspace.xyz/2018-09-25/future-de-she-ji-yu-shi-xian/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dongcia">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小事记">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Java Future的实现原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-25T10:44:47+08:00">
+                2018-09-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <blockquote>
+<p>前阵子在用C++ 98（是比较落后了，嗯，C++11原生支持Future）开发的时候，对脱离业务的公共逻辑抽象出来了一个简单的任务执行框架，里面主要是线程池和一些同步异步的任务。在开发异步任务的时候，为了实现类似java Future模式的能力，对实现方式考量了好久，最终使用了信号量这么重的东西来实现了Future的能力，同时也不禁对java的Future实现产生兴趣，java的Future是怎么实现的呢？</p>
+</blockquote>
+<a id="more"></a>
+<h2 id="concurrent-包"><a href="#concurrent-包" class="headerlink" title="concurrent 包"></a>concurrent 包</h2><p>java Future相关的代码基本都在<code>java.util.concurrent</code>的包里面，<code>Future.java</code>是一个接口，定义了最基本的一些任务操作和状态判断。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Future.java</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">boolean</span> <span class="title">cancel</span><span class="params">(<span class="keyword">boolean</span> mayInterruptIfRunning)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">boolean</span> <span class="title">isCancelled</span><span class="params">()</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">boolean</span> <span class="title">isDone</span><span class="params">()</span></span>;</span><br><span class="line"><span class="function">V <span class="title">get</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException, ExecutionException</span>;</span><br><span class="line"><span class="function">V <span class="title">get</span><span class="params">(<span class="keyword">long</span> timeout, TimeUnit unit)</span></span>;</span><br></pre></td></tr></table></figure>
+<p>我们从<code>FutureTask.java</code>去了解<code>Future</code>的内部机制，<code>FutureTask</code>对<code>Future</code>有比较接地气的实现，其他的实现或多或少都加入了新的一些特性，对了解原理没太大帮助。</p>
+<p><code>FutureTask.java</code>是对<code>Futre</code>和<code>Runnable</code>最简单的实现，所以<code>FutureTask</code>是一个可执行的异步对象。</p>
+<h2 id="FutureTask的状态"><a href="#FutureTask的状态" class="headerlink" title="FutureTask的状态"></a>FutureTask的状态</h2><p><code>FutureTask</code>定义了7种状态，这7种状态里面包含了简单的状态机，使用了一个用<code>volatile</code>修饰的<code>int</code>来记录状态。如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/** Possible state transitions:</span></span><br><span class="line"><span class="comment">* NEW -&gt; COMPLETING -&gt; NORMAL</span></span><br><span class="line"><span class="comment">* NEW -&gt; COMPLETING -&gt; EXCEPTIONAL</span></span><br><span class="line"><span class="comment">* NEW -&gt; CANCELLED</span></span><br><span class="line"><span class="comment">* NEW -&gt; INTERRUPTING -&gt; INTERRUPTED</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">int</span> state;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> NEW          = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> COMPLETING   = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> NORMAL       = <span class="number">2</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> EXCEPTIONAL  = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> CANCELLED    = <span class="number">4</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> INTERRUPTING = <span class="number">5</span>;</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> INTERRUPTED  = <span class="number">6</span>;</span><br></pre></td></tr></table></figure>
+<p>状态的变换基本在<code>FutureTask.java</code>的所有函数中都有体现，我们来看看几个典型的状态变换：</p>
+<ol>
+<li><p>构造函数</p>
+<p>构造函数完成时，将状态置为<code>NEW</code></p>
+</li>
+<li><p>取消操作</p>
+<p>取消操作对任务状态进行判断。</p>
+<ol>
+<li><p>如果任务正在执行但没有完成时，发出中断，并将任务状态置为<strong>中断中状态</strong>，并在执行线程完成后，置为<strong>中断完成状态</strong><code>NEW -&gt; INTERRUPTING -&gt; INTERRUPTED</code></p>
+</li>
+<li><p>当任务还没有执行，则直接置为取消状态 <code>NEW -&gt; CANCELLED</code></p>
+</li>
+</ol>
+</li>
+<li><p>执行操作</p>
+<p>执行分执行成功和执行异常两种，状态转换路径是这两个。</p>
+<p><code>NEW -&gt; COMPLETING -&gt; NORMAL</code>和<code>NEW -&gt; COMPLETING -&gt; EXCEPTIONAL</code></p>
+</li>
+</ol>
+<h2 id="FutureTask的执行"><a href="#FutureTask的执行" class="headerlink" title="FutureTask的执行"></a>FutureTask的执行</h2><p><code>FutureTask</code>因为封装了<code>Runnable</code>的接口，实现了<code>run</code>函数，所以可以直接执行，直接执行使用主线程；<code>FutureTask</code>的另外一种执行方式是提交到线程池去执行，由线程池去分配执行线程；只有提交到线程池去执行才能体现异步的特性。不过我们不关注执行的方式，我们关注执行的逻辑。</p>
+<p><code>FutureTask</code>的构造函数传入了<code>Callable</code>或<code>Runnable</code>对象，也即是需要执行的业务逻辑，他是业务逻辑的基本表现形式，保存在类属性<code>callable</code>，在<code>run</code>函数里面，调用<code>callalbe.call()</code>来执行业务逻辑。<code>run</code>函数主要完成以下几个操作。</p>
+<ol>
+<li>判断当前状态是否为<code>NEW</code>，如果不是，说明任务被执行过，或者已被取消，直接返回。</li>
+<li>如果状态为<code>NEW</code>，<strong>接着会通过<code>unsafe</code>类把任务执行线程保存在<code>runner</code>字段中，如果保存失败，则直接返回</strong>。</li>
+<li>执行任务</li>
+<li>任务执行成功，<code>set</code>保存结果，不成功<code>setException</code>保存异常信息，任务的状态在这里改变。</li>
+</ol>
+<p>以下是<code>run</code>函数的逻辑。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (state != NEW ||</span><br><span class="line">        !UNSAFE.compareAndSwapObject(<span class="keyword">this</span>, runnerOffset,</span><br><span class="line">                                     <span class="keyword">null</span>, Thread.currentThread())) <span class="comment">// 1, 2</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        Callable&lt;V&gt; c = callable;</span><br><span class="line">        <span class="keyword">if</span> (c != <span class="keyword">null</span> &amp;&amp; state == NEW) &#123;</span><br><span class="line">            V result;</span><br><span class="line">            <span class="keyword">boolean</span> ran;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                result = c.call(); <span class="comment">// 3</span></span><br><span class="line">                ran = <span class="keyword">true</span>;</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">                result = <span class="keyword">null</span>;</span><br><span class="line">                ran = <span class="keyword">false</span>;</span><br><span class="line">                setException(ex); <span class="comment">// 4</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (ran)</span><br><span class="line">                set(result); <span class="comment">// 4</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="comment">// runner must be non-null until state is settled to</span></span><br><span class="line">        <span class="comment">// prevent concurrent calls to run()</span></span><br><span class="line">        runner = <span class="keyword">null</span>;</span><br><span class="line">        <span class="comment">// state must be re-read after nulling runner to prevent</span></span><br><span class="line">        <span class="comment">// leaked interrupts</span></span><br><span class="line">        <span class="keyword">int</span> s = state;</span><br><span class="line">        <span class="keyword">if</span> (s &gt;= INTERRUPTING)</span><br><span class="line">            handlePossibleCancellationInterrupt(s);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由于在任务执行的过程中，可能被取消，所以在<code>finally</code>块里，会任务的根据状态来做一些善后的工作。</p>
+<h2 id="FutureTask的取消"><a href="#FutureTask的取消" class="headerlink" title="FutureTask的取消"></a>FutureTask的取消</h2><p>任务的取消比较简单，我们知道，在执行的时候，执行任务的线程会保存在<code>runner</code>属性中，所以对于正在执行的任务，<strong>取消的本质就是将执行的线程取出来，向该线程发出<code>interupt</code>信号</strong>。但对于一个较为完备的取消动作，<code>cancel</code>做了一下几个动作。</p>
+<ol>
+<li><p>判断任务当前执行状态，如果任务状态不为<code>NEW</code>，则说明任务或者已经执行完成，或者执行异常，不能被取消，直接返回<code>false</code>表示执行失败。</p>
+</li>
+<li><p>判断需要中断任务执行线程，则</p>
+<ol>
+<li>把任务状态从<code>NEW</code>转化到<code>INTERRUPTING</code>。这是个中间状态。</li>
+<li>中断任务执行线程。</li>
+<li>修改任务状态为<code>INTERRUPTED</code>。</li>
+</ol>
+</li>
+<li><p>如果不需要中断任务执行线程，直接把任务状态从<code>NEW</code>转化为<code>CANCELLED</code>。如果转化失败则返回<code>false</code>表示取消失败。</p>
+</li>
+<li><p>调用<code>finishCompletion</code></p>
+<p>这个函数将阻塞在等待这个任务完成的线程唤醒，具体操作是<code>LockSupport.unpark(t)</code>，这些线程都是在<code>awaitDone</code>函数内的<code>LockSupport.park(this)</code>中阻塞的，关于<code>awaitDone</code>函数的作用后文还会继续介绍。<code>finishCompletion</code>除了在这里有调用以外，在<code>set</code>和<code>setException</code>中也有调用。</p>
+<p>以下是<code>finishCompletion</code>的实现</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Removes and signals all waiting threads, invokes done(), and</span></span><br><span class="line"><span class="comment"> * nulls out callable.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">finishCompletion</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// assert state &gt; COMPLETING;</span></span><br><span class="line">    <span class="keyword">for</span> (WaitNode q; (q = waiters) != <span class="keyword">null</span>;) &#123;</span><br><span class="line">        <span class="keyword">if</span> (UNSAFE.compareAndSwapObject(<span class="keyword">this</span>, waitersOffset, q, <span class="keyword">null</span>)) &#123;</span><br><span class="line">            <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">                Thread t = q.thread;</span><br><span class="line">                <span class="keyword">if</span> (t != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    q.thread = <span class="keyword">null</span>;</span><br><span class="line">                    LockSupport.unpark(t);</span><br><span class="line">                &#125;</span><br><span class="line">                WaitNode next = q.next;</span><br><span class="line">                <span class="keyword">if</span> (next == <span class="keyword">null</span>)</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                q.next = <span class="keyword">null</span>; <span class="comment">// unlink to help gc</span></span><br><span class="line">                q = next;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    done();</span><br><span class="line">    callable = <span class="keyword">null</span>;        <span class="comment">// to reduce footprint</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>以下是<code>cancel</code>函数的实现。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">cancel</span><span class="params">(<span class="keyword">boolean</span> mayInterruptIfRunning)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!(state == NEW &amp;&amp;</span><br><span class="line">          UNSAFE.compareAndSwapInt(<span class="keyword">this</span>, stateOffset, NEW,</span><br><span class="line">              mayInterruptIfRunning ? INTERRUPTING : CANCELLED))) <span class="comment">// 1, 2</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;    <span class="comment">// in case call to interrupt throws exception</span></span><br><span class="line">        <span class="keyword">if</span> (mayInterruptIfRunning) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Thread t = runner;</span><br><span class="line">                <span class="keyword">if</span> (t != <span class="keyword">null</span>)</span><br><span class="line">                    t.interrupt();</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123; <span class="comment">// final state</span></span><br><span class="line">                UNSAFE.putOrderedInt(<span class="keyword">this</span>, stateOffset, INTERRUPTED); <span class="comment">// 3</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        finishCompletion(); <span class="comment">// 4</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="FutureTask的结果"><a href="#FutureTask的结果" class="headerlink" title="FutureTask的结果"></a>FutureTask的结果</h2><p>异步任务提交到线程池去执行后，由于无法预知什么时候结束，所以必须得提供接口来获取任务执行的结果，在<code>FutureTask</code>中，<code>get</code>函数用来获取任务执行的结果。该函数有了设置超时和不超时的两种实现。</p>
+<p>除去超时的差异，<code>get</code>操作对任务的状态进行判断，当状态还没有完成的时候，调用<code>awaitDone</code>函数来等待完成，我们在上面提到过这个函数，对于未完成的任务<code>awaitDone</code>阻塞，而<code>finishCompletion</code>唤醒阻塞。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> V <span class="title">get</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException, ExecutionException </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> s = state;</span><br><span class="line">    <span class="keyword">if</span> (s &lt;= COMPLETING)</span><br><span class="line">        s = awaitDone(<span class="keyword">false</span>, <span class="number">0L</span>);</span><br><span class="line">    <span class="keyword">return</span> report(s);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们来详细看看awaitDone函数做了什么操作，它是如何阻塞的，它是怎么设置超时和完成返回的。</p>
+<p><code>awaitDone</code>主题是一个死循环，轮询判断任务的状态。</p>
+<ol>
+<li><p>当执行的线程被中断时，调用<code>removeWaiter</code>移除等待节点<code>WaitNode</code>，抛出中断异常</p>
+</li>
+<li><p>当状态为已经完成，直接返回</p>
+</li>
+<li><p>当状态为完成中，通过<code>Thread.yield()</code>让出CPU时间</p>
+</li>
+<li><p>如果当前线程还没有创建<code>WaitNode</code>等待节点保存到等待队列里面去，则新建一个等待节点，插入到等待链表，表明当前线程也准备进入等待该任务完成的队列中去。</p>
+</li>
+<li><p>最后是进入阻塞的动作，通过<code>LockSupport.park</code>，如果设置了超时的时间，则将时间作为参数传递到<code>park</code>中去。</p>
+<p>综上，<code>awaitDone</code>函数除了对状态的判断以外，核心就是<code>LockSupport</code>的阻塞等待完成的操作了。我们后面还会探讨一下<code>LockSupport</code>。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">awaitDone</span><span class="params">(<span class="keyword">boolean</span> timed, <span class="keyword">long</span> nanos)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> deadline = timed ? System.nanoTime() + nanos : <span class="number">0L</span>;</span><br><span class="line">    WaitNode q = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">boolean</span> queued = <span class="keyword">false</span>;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        <span class="keyword">if</span> (Thread.interrupted()) &#123;</span><br><span class="line">            removeWaiter(q);</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> InterruptedException();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> s = state;</span><br><span class="line">        <span class="keyword">if</span> (s &gt; COMPLETING) &#123;</span><br><span class="line">            <span class="keyword">if</span> (q != <span class="keyword">null</span>)</span><br><span class="line">                q.thread = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">return</span> s;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (s == COMPLETING) <span class="comment">// cannot time out yet</span></span><br><span class="line">            Thread.yield();</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (q == <span class="keyword">null</span>)</span><br><span class="line">            q = <span class="keyword">new</span> WaitNode();</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (!queued)</span><br><span class="line">            queued = UNSAFE.compareAndSwapObject(<span class="keyword">this</span>, waitersOffset,</span><br><span class="line">                                                 q.next = waiters, q);</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (timed) &#123;</span><br><span class="line">            nanos = deadline - System.nanoTime();</span><br><span class="line">            <span class="keyword">if</span> (nanos &lt;= <span class="number">0L</span>) &#123;</span><br><span class="line">                removeWaiter(q);</span><br><span class="line">                <span class="keyword">return</span> state;</span><br><span class="line">            &#125;</span><br><span class="line">            LockSupport.parkNanos(<span class="keyword">this</span>, nanos);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            LockSupport.park(<span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>当<code>awaitDone</code>的阻塞完成以后，就会将结果返回，将结果返回是通过<code>report</code>函数来实现的，返回的是执行完成的结果或者是执行中获得的异常信息。</p>
+<h2 id="LockSupport"><a href="#LockSupport" class="headerlink" title="LockSupport"></a>LockSupport</h2><p>异步执行任务，在获取任务状态时，阻塞是必然的，在开头引子我简单的提到了在自己实现的那个简陋的框架内，使用了信号量的方式来设置异步任务的阻塞和执行状态。在这里是通过<code>LockSupport</code>来实现的，阻塞(park)和唤醒(unpark)。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">unpark</span><span class="params">(Thread thread)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (thread != <span class="keyword">null</span>)</span><br><span class="line">        UNSAFE.unpark(thread);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">park</span><span class="params">(Object blocker)</span> </span>&#123;</span><br><span class="line">    Thread t = Thread.currentThread();</span><br><span class="line">    setBlocker(t, blocker);</span><br><span class="line">    UNSAFE.park(<span class="keyword">false</span>, <span class="number">0L</span>);</span><br><span class="line">    setBlocker(t, <span class="keyword">null</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到<code>LockSupport</code>则是通过<code>UNSAFE</code>的同名函数来实现的。<strong>java不能直接访问操作系统底层，而是通过本地方法来访问。Unsafe类提供了硬件级别的原子操作。</strong></p>
+<blockquote>
+<p> Unsafe类是在sun.misc包下，不属于java标准。但是很多Java的基础类库，包括一些被广泛使用的高性能开发库都是基于Unsafe类开发的，比如Netty、Cassandra、Hadoop、Kafka等。Unsafe类在提升Java运行效率，增强Java语言底层操作能力方面起了很大的作用。<strong>Unsafe类使Java拥有了像C语言的指针一样操作内存空间的能力，同时也带来了指针的问题</strong>。过度的使用Unsafe类会使得出错的几率变大，因此Java官方并不建议使用的，官方文档也几乎没有。</p>
+</blockquote>
+<p>所以在这里java也是使用了C级别的线程同步机制来完成这些操作的，在这就不再展开了。</p>
+<hr>
+<p>为保持文章内容的连贯性，部分内容参考自：</p>
+<ol>
+<li><a href="https://www.skyreal.me/future-task-yuan-ma-jie-xi/" target="_blank" rel="noopener">https://www.skyreal.me/future-task-yuan-ma-jie-xi/</a></li>
+<li><a href="http://beautyboss.farbox.com/post/study/shen-ru-xue-xi-futuretask" target="_blank" rel="noopener">http://beautyboss.farbox.com/post/study/shen-ru-xue-xi-futuretask</a></li>
+</ol>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/技术/" rel="tag"># 技术</a>
+          
+            <a href="/tags/Java/" rel="tag"># Java</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018-09-03/bug-collection/" rel="next" title="Bug 汇总">
+                <i class="fa fa-chevron-left"></i> Bug 汇总
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018-11-08/java-reflect/" rel="prev" title="java 反射">
+                java 反射 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div id="gitalk-container">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dongcia</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#concurrent-包"><span class="nav-number">1.</span> <span class="nav-text">concurrent 包</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FutureTask的状态"><span class="nav-number">2.</span> <span class="nav-text">FutureTask的状态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FutureTask的执行"><span class="nav-number">3.</span> <span class="nav-text">FutureTask的执行</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FutureTask的取消"><span class="nav-number">4.</span> <span class="nav-text">FutureTask的取消</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FutureTask的结果"><span class="nav-number">5.</span> <span class="nav-text">FutureTask的结果</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LockSupport"><span class="nav-number">6.</span> <span class="nav-text">LockSupport</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dongcia</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+  <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+  <script src="//cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.js"></script>
+   <script type="text/javascript">
+        var gitalk = new Gitalk({
+          clientID: 'e89bfe7952ba3aaa903d',
+          clientSecret: '1bf21d50a11029ab1887fd345e6d73882eaccc9f',
+          repo: 'dongcia.github.io',
+          owner: 'dongcia',
+          admin: ['dongcia'],
+          id: md5(location.pathname),
+          distractionFreeMode: 'true'
+        })
+        gitalk.render('gitalk-container')           
+       </script>
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+<script>
+(function(){
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+})();
+</script>
+
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

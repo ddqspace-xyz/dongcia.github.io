@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta name="baidu-site-verification" content="WlkvvMvzfN">
+<meta name="google-site-verification" content="ugWInXY65CU7UTxW9TErUlvsSzh8PNfwZ7RlRD4x6d4">
+<meta name="google-site-verification" content="VdMkJFZ8V3ulvG2oWYu01DgLcj3QaxkkORB3giXRA1g">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="技术,ZooKeeper,分布式,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="分布式一致性算法 Paxos：于1990年提出的一种基于消息传递且具有高度容错特性的一致性算法，为说明Paxos算法，有一个生动的希腊城邦议员的例子说明Paxos算法的工作过程，虽然有例子，理解起来还是比较困难。使用了该算法的著名开源组件有腾讯微信的：phxpaxos。 Zab：ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中">
+<meta name="keywords" content="技术,ZooKeeper,分布式">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式系统的基石——ZooKeeper">
+<meta property="og:url" content="http://blog.ddqspace.xyz/2019-02-15/distribute-zk/index.html">
+<meta property="og:site_name" content="小事记">
+<meta property="og:description" content="分布式一致性算法 Paxos：于1990年提出的一种基于消息传递且具有高度容错特性的一致性算法，为说明Paxos算法，有一个生动的希腊城邦议员的例子说明Paxos算法的工作过程，虽然有例子，理解起来还是比较困难。使用了该算法的著名开源组件有腾讯微信的：phxpaxos。 Zab：ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2020-07-20T02:52:58.969Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="分布式系统的基石——ZooKeeper">
+<meta name="twitter:description" content="分布式一致性算法 Paxos：于1990年提出的一种基于消息传递且具有高度容错特性的一致性算法，为说明Paxos算法，有一个生动的希腊城邦议员的例子说明Paxos算法的工作过程，虽然有例子，理解起来还是比较困难。使用了该算法的著名开源组件有腾讯微信的：phxpaxos。 Zab：ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://blog.ddqspace.xyz/2019-02-15/distribute-zk/">
+
+
+
+
+
+  <title>分布式系统的基石——ZooKeeper | 小事记</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">小事记</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://blog.ddqspace.xyz/2019-02-15/distribute-zk/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dongcia">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小事记">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">分布式系统的基石——ZooKeeper</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-15T10:23:20+08:00">
+                2019-02-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="分布式一致性算法"><a href="#分布式一致性算法" class="headerlink" title="分布式一致性算法"></a>分布式一致性算法</h2><ul>
+<li>Paxos：于1990年提出的一种基于消息传递且具有高度容错特性的一致性算法，为说明Paxos算法，有一个生动的希腊城邦议员的例子说明Paxos算法的工作过程，虽然有例子，理解起来还是比较困难。使用了该算法的著名开源组件有腾讯微信的：<code>phxpaxos</code>。</li>
+<li>Zab：ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中，主要依赖 ZAB 协议来实现分布式数据一致性，基于该协议，ZooKeeper 实现了一种主备模式的系统架构来保持集群中各个副本之间的数据一致性。</li>
+<li>Raft：相对容易理解的算法，著名分布式kv存储etcd使用的分布式算法。</li>
+<li>Gossip：听的少，使用Gossip算法实现的组件有consul。</li>
+</ul>
+<p>总的而言，分布式一致性算法就是为了解决分布式系统中非原子操作数据一致性的问题，相当于把原有单机中的操作系统的锁同步等操作应用到分布式环境中。本文不是讨论分布式一致性算法的文章，对分布式一致性算法只简单列举介绍，有兴趣的同学可以查阅更多资料了解。</p>
+<a id="more"></a>
+<h2 id="ZooKeeper"><a href="#ZooKeeper" class="headerlink" title="ZooKeeper"></a>ZooKeeper</h2><p>Zookeeper 分布式服务框架是Apache Hadoop的一个子项目，它是一个针对大型分布式系统的高可用、高性能且具有一致性的开源协调服务，它主要是用来解决分布式应用中经常遇到的一些数据管理问题，可以高可靠的维护元数据。提供的功能包括：配置维护、名字服务、分布式同步、组服务等。ZooKeeper的设计目标就是封装好复杂易出错的关键服务，将简单易用的接口和性能高效、功能稳定的系统提供给用户。</p>
+<h3 id="ZooKeeper-的安装"><a href="#ZooKeeper-的安装" class="headerlink" title="ZooKeeper 的安装"></a>ZooKeeper 的安装</h3><p>ZooKeeper单机安装非常简单，可以分为以下几步。</p>
+<ol>
+<li><p>下载解压</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 1. 下载解压</span><br><span class="line">mkdir -p /data/zk</span><br><span class="line">cd /data/zk</span><br><span class="line">tar -xzvf zookeeper-3.4.11.tar.gz</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>创建必要目录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 2. 创建必要目录</span><br><span class="line">mkdir data</span><br><span class="line">mkdir log</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 3. 修改配置</span><br><span class="line">cd /data/zk/zookeeper-3.4.11/conf</span><br><span class="line">cp zoo_sample.cfg zoo.cfg</span><br><span class="line"><span class="meta">#</span> 配置dataDir, dataLogDir</span><br><span class="line">vim zoo.cfg</span><br><span class="line"><span class="meta">#</span> 配置内容</span><br><span class="line">dataDir=/data/zk/data</span><br><span class="line">dataLogDir=/data/zk/log</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>如果ZooKeeper需要集群安装，则需要在ZooKeeper节点之间的配置信息里同步其他节点的信息，例如：</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">server.0</span>=<span class="number">172.16</span>.<span class="number">10.12</span>:<span class="number">8800</span>:<span class="number">8801</span></span><br><span class="line"><span class="attr">server.1</span>=<span class="number">172.16</span>.<span class="number">10.189</span>:<span class="number">8800</span>:<span class="number">8801</span></span><br><span class="line"><span class="attr">server.2</span>=<span class="number">172.16</span>.<span class="number">11.36</span>:<span class="number">8800</span>:<span class="number">8801</span></span><br></pre></td></tr></table></figure>
+<h3 id="ZooKeeper-的数据存储——Znode"><a href="#ZooKeeper-的数据存储——Znode" class="headerlink" title="ZooKeeper 的数据存储——Znode"></a>ZooKeeper 的数据存储——Znode</h3><p>Znode既可以作为保存数据的容器（如同文件），也可以作为保存其他Znode的容器（如同目录）。所有的Znode构成一个层次化的命名空间。一种自然的建立组成员列表的方式就是利用这种层次结构，创建一个以组名为节点名的Znode作为父节点，然后以组成员名为节点名来创建作为子节点的Znode。</p>
+<p>Znode的类型：</p>
+<ol>
+<li><p>PERSISTENT——持久化节点</p>
+<blockquote>
+<p> 客户端与ZooKeeper断开连接后，该节点依旧存在</p>
+</blockquote>
+</li>
+<li><p>PERSISTENT_SEQUENTIAL——持久化顺序编号节点</p>
+<blockquote>
+<p> 客户端与ZooKeeper断开连接后，该节点依旧存在，只是Zookeeper给该节点名称进行顺序编号</p>
+</blockquote>
+</li>
+<li><p>EPHEMERAL——临时节点</p>
+<blockquote>
+<p>客户端与ZooKeeper断开连接后，该节点被删除</p>
+</blockquote>
+</li>
+<li><p>EPHEMERAL_SEQUENTIAL——临时顺序编号节点</p>
+<blockquote>
+<p>客户端与ZooKeeper断开连接后，该节点被删除，只是Zookeeper给该节点名称进行顺序编号</p>
+</blockquote>
+</li>
+</ol>
+<h2 id="ZooKeeper-Python-客户端——Kazoo"><a href="#ZooKeeper-Python-客户端——Kazoo" class="headerlink" title="ZooKeeper Python 客户端——Kazoo"></a>ZooKeeper Python 客户端——Kazoo</h2><p>ZooKeeper使用Java进行开发，官方只提供了Java、C/C++的操作接口，随着Python语言与ZooKeeper的关系越来越密切，对于操作ZooKeeper更加简单的诉求也越来越多，Kazoo就是纯Python语言封装的操作ZooKeeper的客户端。</p>
+<h3 id="Kazoo操作Znode"><a href="#Kazoo操作Znode" class="headerlink" title="Kazoo操作Znode"></a>Kazoo操作Znode</h3><h4 id="获取ZK实例"><a href="#获取ZK实例" class="headerlink" title="获取ZK实例"></a>获取ZK实例</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> kazoo.client <span class="keyword">import</span> KazooClient</span><br><span class="line"></span><br><span class="line"><span class="string">'''</span></span><br><span class="line"><span class="string">kazoo CRUD demo</span></span><br><span class="line"><span class="string">'''</span></span><br><span class="line"></span><br><span class="line">ZK_ADDR = <span class="string">'192.168.149.134:2181'</span></span><br><span class="line">zk_instance = <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">init</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    获取kazoo client 实例</span></span><br><span class="line"><span class="string">    :return:</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">global</span> zk_instance</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> zk_instance:</span><br><span class="line">        <span class="keyword">return</span> zk_instance</span><br><span class="line">    zk_instance = KazooClient(hosts=ZK_ADDR)</span><br><span class="line">    zk_instance.start()</span><br><span class="line">    <span class="keyword">return</span> zk_instance</span><br></pre></td></tr></table></figure>
+<h4 id="增加Znode记录"><a href="#增加Znode记录" class="headerlink" title="增加Znode记录"></a>增加Znode记录</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 增</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">create_node</span><span class="params">()</span>:</span></span><br><span class="line">    zk_node_path = <span class="string">'/data/zk/kazoo/demo'</span></span><br><span class="line"></span><br><span class="line">    zk = init()</span><br><span class="line">    <span class="comment"># 保证节点路径存在</span></span><br><span class="line">    zk.ensure_path(zk_node_path)</span><br><span class="line">    <span class="comment"># 创建永久节点</span></span><br><span class="line">    zk_node = <span class="string">'persistent_node'</span></span><br><span class="line">    data = <span class="string">b'this is a persistent node.'</span></span><br><span class="line">    zk.create(<span class="string">'%s/%s'</span> % (zk_node_path, zk_node), data, ephemeral=<span class="literal">False</span>)</span><br><span class="line">    print(<span class="string">'Create node: %s with data: %s.'</span> % (zk_node_path, data))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 创建临时节点</span></span><br><span class="line">    zk_node = <span class="string">'ephemeral_node'</span></span><br><span class="line">    data = <span class="string">b'this is a persistent node.'</span></span><br><span class="line">    zk.create(<span class="string">'%s/%s'</span> % (zk_node_path, zk_node), data, ephemeral=<span class="literal">True</span>)</span><br><span class="line">    print(<span class="string">'Create node: %s with data: %s.'</span> % (zk_node_path, data))</span><br></pre></td></tr></table></figure>
+<h4 id="查询Znode记录"><a href="#查询Znode记录" class="headerlink" title="查询Znode记录"></a>查询Znode记录</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">read_node</span><span class="params">()</span>:</span></span><br><span class="line">    zk_node_path = <span class="string">'/data/zk/kazoo/demo'</span></span><br><span class="line"></span><br><span class="line">    zk = init()</span><br><span class="line">    <span class="comment"># 读取zk_node_path路径下的子节点</span></span><br><span class="line">    nodes = zk.get_children(zk_node_path)</span><br><span class="line">    print(<span class="string">'Node: %s has this children: %s'</span> % (zk_node_path, str(nodes)))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 读取节点内容</span></span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">        node = <span class="string">'%s/%s'</span> % (zk_node_path, node)</span><br><span class="line">        data = zk.get(node)</span><br><span class="line">        print(<span class="string">'Node: %s, Data: %s'</span> % (node, data))</span><br></pre></td></tr></table></figure>
+<h4 id="修改Znode记录"><a href="#修改Znode记录" class="headerlink" title="修改Znode记录"></a>修改Znode记录</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 改</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">update_node</span><span class="params">()</span>:</span></span><br><span class="line">    zk_node_path = <span class="string">'/data/zk/kazoo/demo'</span></span><br><span class="line">    zk_node = <span class="string">'persistent_node'</span></span><br><span class="line">    zk_node = <span class="string">'%s/%s'</span> % (zk_node_path, zk_node)</span><br><span class="line"></span><br><span class="line">    zk = init()</span><br><span class="line"></span><br><span class="line">    data = zk.get(zk_node)</span><br><span class="line">    print(<span class="string">'Before update, Node: %s =&gt; Data: %s.'</span> % (zk_node, data))</span><br><span class="line">    new_data = <span class="string">b'update node.'</span></span><br><span class="line">    zk.set(zk_node, new_data)</span><br><span class="line">    data = zk.get(zk_node)</span><br><span class="line">    print(<span class="string">'After update, Node: %s =&gt; Data: %s.'</span> % (zk_node, data))</span><br></pre></td></tr></table></figure>
+<h4 id="删除Znode记录"><a href="#删除Znode记录" class="headerlink" title="删除Znode记录"></a>删除Znode记录</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">delete_node</span><span class="params">()</span>:</span></span><br><span class="line">    zk_node_path = <span class="string">'/data/zk'</span></span><br><span class="line"></span><br><span class="line">    zk = init()</span><br><span class="line"></span><br><span class="line">    zk.delete(zk_node_path, recursive=<span class="literal">True</span>)</span><br><span class="line">    print(<span class="string">'Delete node: %s'</span> % zk_node_path)</span><br></pre></td></tr></table></figure>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/技术/" rel="tag"># 技术</a>
+          
+            <a href="/tags/ZooKeeper/" rel="tag"># ZooKeeper</a>
+          
+            <a href="/tags/分布式/" rel="tag"># 分布式</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019-02-14/ipc-socket-md/" rel="next" title="进程间通信(IPC)——Unix域套接字 VS 网络套接字">
+                <i class="fa fa-chevron-left"></i> 进程间通信(IPC)——Unix域套接字 VS 网络套接字
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019-02-15/kazoo-service-discover/" rel="prev" title="服务注册与服务发现的最简单实践">
+                服务注册与服务发现的最简单实践 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div id="gitalk-container">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dongcia</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#分布式一致性算法"><span class="nav-number">1.</span> <span class="nav-text">分布式一致性算法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ZooKeeper"><span class="nav-number">2.</span> <span class="nav-text">ZooKeeper</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ZooKeeper-的安装"><span class="nav-number">2.1.</span> <span class="nav-text">ZooKeeper 的安装</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ZooKeeper-的数据存储——Znode"><span class="nav-number">2.2.</span> <span class="nav-text">ZooKeeper 的数据存储——Znode</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ZooKeeper-Python-客户端——Kazoo"><span class="nav-number">3.</span> <span class="nav-text">ZooKeeper Python 客户端——Kazoo</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Kazoo操作Znode"><span class="nav-number">3.1.</span> <span class="nav-text">Kazoo操作Znode</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#获取ZK实例"><span class="nav-number">3.1.1.</span> <span class="nav-text">获取ZK实例</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#增加Znode记录"><span class="nav-number">3.1.2.</span> <span class="nav-text">增加Znode记录</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#查询Znode记录"><span class="nav-number">3.1.3.</span> <span class="nav-text">查询Znode记录</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#修改Znode记录"><span class="nav-number">3.1.4.</span> <span class="nav-text">修改Znode记录</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#删除Znode记录"><span class="nav-number">3.1.5.</span> <span class="nav-text">删除Znode记录</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dongcia</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+  <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+  <script src="//cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.js"></script>
+   <script type="text/javascript">
+        var gitalk = new Gitalk({
+          clientID: 'e89bfe7952ba3aaa903d',
+          clientSecret: '1bf21d50a11029ab1887fd345e6d73882eaccc9f',
+          repo: 'dongcia.github.io',
+          owner: 'dongcia',
+          admin: ['dongcia'],
+          id: md5(location.pathname),
+          distractionFreeMode: 'true'
+        })
+        gitalk.render('gitalk-container')           
+       </script>
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+<script>
+(function(){
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+})();
+</script>
+
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
